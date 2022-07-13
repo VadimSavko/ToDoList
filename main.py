@@ -85,7 +85,7 @@ class Task():
     # Добавления задания в список.
     def add_task(self, name, priority):
         self.cur.execute('INSERT INTO tasks (task_name, task_priority) VALUES (?, ?)', (name, priority))
-        self.conn.commit
+        self.conn.commit()
 
     # Перезапись задания в списке.
     def update_task(self, id, name, priority):
@@ -134,7 +134,7 @@ class Task():
         id = input('\nEnter task ID : ')
         if id in self.__task_list:
             self.cur.execute('DELETE FROM tasks WHERE task_id = ?;', (id,))
-            self.conn.commit
+            self.conn.commit()
 
     # Поиск задания в списке.
     def find_task(self):        
@@ -172,10 +172,10 @@ class Task():
             input_text = input(message)
 
             if input_text == TASK_EXIT_CONDITION:  # Проверка выхода из программы.
-                self.close_db_connection
+                self.close_db_connection()
                 exit()
             elif input_text == TASK_DISPLAY_CONDITION:  # Проверка на вывод списка заданий на экран.
-                self.show_task()
+                self.show_task() 
                 return ''
             elif input_text == TASK_FIND_CONDITION:  # Проверка на поиск задания в списке.
                 self.find_task()
@@ -196,7 +196,7 @@ class Task():
 # Основная программа.
 task = Task()
 
-print(task.show_task_condition())
+print(Task.show_task_condition())
 
 while True:
     try:
