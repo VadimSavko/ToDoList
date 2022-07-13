@@ -7,6 +7,7 @@ from os import strerror
 from unicodedata import name
 import sqlite3 as sql
 from prettytable import PrettyTable
+from prettytable import from_db_cursor
 
 # Константы.
 TASK_NAME_MIN_LENGTH = 7  # Минимальная длина названия задания.
@@ -81,7 +82,25 @@ class Task():
         task_change = '\nEnter "{}" to change the task in list.'.format(TASK_CHANGE_CONDITION)
         delete_change = '\nEnter "{}" to delete the task in list.'.format(TASK_DELETE_CONDITION)
         return task_name + task_priority + task_exit + task_display + task_find + task_file + task_change + delete_change
+
+    def is_valid_task_id(self, id):
+        self.cur.execute('SELECT * FROM tasks WHERE task_id = (?)', (id, ))
+        records = self.cur.fetchall()
+        return len(records) == 1
     
+    def is_valid_task(self, task):
+        return len(task) == 3
+
+    def get_task_by_id(self, id):
+        self.cur.execute('SELECT * FROM tasks WHERE task_id = (?)', (id, ))
+        records = self.cur.fetchall()
+        return records[0]
+
+    def get_all_tasks(self):
+        self.cur.execute('SELECT * FROM tasks')
+        records = self.cur.fetchall()
+        return records
+
     # Добавления задания в список.
     def add_task(self, name, priority):
         self.cur.execute('INSERT INTO tasks (task_name, task_priority) VALUES (?, ?)', (name, priority))
@@ -89,27 +108,30 @@ class Task():
 
     # Перезапись задания в списке.
     def update_task(self, id, name, priority):
-        #if id in self.__task_list:            
-        self.cur.execute('UPDATE tasks SET task_name = ?, task_priority = ? where task_id = ?;',
-        (name, priority, id))
-        return True
-
+        if self.is_valid_task_id(id):
+            self.cur.execute('UPDATE tasks SET task_name = ?, task_priority = ? where task_id = ?;', (name, priority, id))
+        else:
+            raise NotFoundTaskError(id)
+        
     # Вывод списка заданий на экран.
     def show_task(self):        
         self.task_table.field_names = ["ID", "Name", "Priority"]
         self.cur.execute('SELECT task_id, task_name, task_priority FROM tasks')
-        mytable = PrettyTable.from_db_cursor(self.cur)
+        mytable = from_db_cursor(self.cur)        
+        print()
         print(mytable)
+        print()
     
     # Редактирование задания из списка.
     def change_task(self):
         id = input('\nEnter task ID : ')
-
-        if id in self.__task_list:
+        task = self.get_task_by_id(id)
+        
+        if self.is_valid_task(task):        
             while True:
                 name = input('\nEnter new name or empty string : ')
                 if name == '': 
-                    name = self.__task_list[id][0]
+                    name = task[1]
                     break
                 else:
                     if Task.check_task_name(name):
@@ -118,7 +140,7 @@ class Task():
             while True:
                 priority = input('\nEnter new priority or empty string : ')
                 if priority == '': 
-                    priority = self.__task_list[id][1]                   
+                    priority = task[2]                   
                     break
                 else:
                     if Task.check_task_priority(priority):
@@ -129,12 +151,14 @@ class Task():
         else:
             raise NotFoundTaskError(id)
 
-    # Редактирование задания из списка.
+    # Удаление задания из списка.
     def delete_task(self):
         id = input('\nEnter task ID : ')
-        if id in self.__task_list:
+        if self.is_valid_task_id(id):
             self.cur.execute('DELETE FROM tasks WHERE task_id = ?;', (id,))
             self.conn.commit()
+        else:
+            raise NotFoundTaskError(id)
 
     # Поиск задания в списке.
     def find_task(self):        
@@ -153,9 +177,11 @@ class Task():
                     
     # Запись списка заданий в файл.
     def write_to_file(self):
+        tasks = self.get_all_tasks()
+        
         s = ''            
-        for key, value in self.__task_list.items():
-            s += '{} {} {}'.format(key, value[0], value[1]) + "\n"
+        for task in tasks:
+            s += '{} {} {}'.format(task[0], task[1], task[2]) + "\n"
         
         try:
             f = open(TASK_FILE_NAME, 'wt')    
